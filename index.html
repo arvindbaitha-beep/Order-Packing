@@ -1,0 +1,289 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Order Processing WMS</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script><script>window.XLSX||document.write('<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"><\/script>');</script><script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script><style>
+  :root{
+    --bg:#EEF1F4;
+    --panel:#FFFFFF;
+    --panel-2:#F5F7F9;
+    --border:#D7DEE5;
+    --text:#141A21;
+    --text-muted:#5B6774;
+    --accent:#E05B24;
+    --accent-ink:#FFFFFF;
+    --success:#1E9E6B;
+    --success-bg:#E3F7EE;
+    --danger:#D92D33;
+    --danger-bg:#FDE1E2;
+    --warn:#B4700A;
+    --warn-bg:#FBEBD3;
+    --radius:5px;
+    --mono:'IBM Plex Mono', ui-monospace, monospace;
+    --sans:'Space Grotesk', system-ui, sans-serif;
+    box-sizing:border-box;
+    padding-top:env(safe-area-inset-top,0px);
+    padding-bottom:env(safe-area-inset-bottom,0px);
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --bg:#0F1620; --panel:#161F2A; --panel-2:#1C2733; --border:#2A3744;
+      --text:#EAEDF1; --text-muted:#8B98A8; --accent:#FF6A39; --accent-ink:#1A0800;
+      --success:#3FB27F; --success-bg:rgba(63,178,127,.16); --danger:#FF5A5F;
+      --danger-bg:rgba(229,72,77,.2); --warn:#F5A623; --warn-bg:rgba(245,166,35,.18);
+    }
+  }
+  :root[data-theme="dark"]{
+    --bg:#0F1620; --panel:#161F2A; --panel-2:#1C2733; --border:#2A3744;
+    --text:#EAEDF1; --text-muted:#8B98A8; --accent:#FF6A39; --accent-ink:#1A0800;
+    --success:#3FB27F; --success-bg:rgba(63,178,127,.16); --danger:#FF5A5F;
+    --danger-bg:rgba(229,72,77,.2); --warn:#F5A623; --warn-bg:rgba(245,166,35,.18);
+  }
+  html{scroll-padding-top:env(safe-area-inset-top,0px);}
+  *{box-sizing:border-box;}
+  body{
+    margin:0; background:var(--bg); color:var(--text);
+    font-family:var(--sans); -webkit-font-smoothing:antialiased;
+    min-height:100%;
+  }
+  .app{display:flex; min-height:100vh;}
+  /* Sidebar */
+  .side{
+    width:220px; flex:0 0 220px; background:var(--panel);
+    border-right:1px solid var(--border);
+    padding:20px 16px; position:sticky; top:0; height:100vh; overflow-y:auto;
+    padding-top:calc(20px + env(safe-area-inset-top,0px));
+  }
+  .brand{display:flex; align-items:center; gap:8px; margin-bottom:26px;}
+  .brand .mark{width:26px; height:26px; background:var(--accent); border-radius:4px; position:relative; flex:0 0 auto;}
+  .brand .mark::after{content:"";position:absolute; inset:5px; border:2px solid var(--accent-ink); border-radius:2px;}
+  .brand .name{font-weight:700; font-size:15px; letter-spacing:.2px; line-height:1.1;}
+  .brand .name small{display:block; font-size:10px; font-weight:500; color:var(--text-muted); letter-spacing:.4px;}
+  nav.sidenav{display:flex; flex-direction:column; gap:2px;}
+  .navsec{margin-bottom:18px;}
+  .navsec .seclabel{font-size:10px; font-weight:700; letter-spacing:.5px; color:var(--text-muted); padding:0 10px; margin-bottom:6px; opacity:.75;}
+  .navbtn{
+    position:relative; display:flex; align-items:center; gap:10px; text-align:left; width:100%;
+    padding:9px 10px 9px 13px; border:none; background:transparent; color:var(--text-muted);
+    font-family:var(--sans); font-size:13.5px; font-weight:500; border-radius:var(--radius);
+    cursor:pointer;
+  }
+  .navbtn svg{width:16px; height:16px; flex:0 0 auto; stroke:currentColor; fill:none; stroke-width:1.7; opacity:.85;}
+  .navbtn:hover{background:var(--panel-2); color:var(--text);}
+  .navbtn.active{background:var(--panel-2); color:var(--text); font-weight:600;}
+  .navbtn.active::before{content:"";position:absolute; left:0; top:4px; bottom:4px; width:3px; border-radius:3px; background:var(--accent);}
+  .navbtn .badge{margin-left:auto; font-family:var(--mono); font-size:10.5px; background:var(--border); color:var(--text-muted); padding:1px 6px; border-radius:20px;}
+  .navbtn.active .badge{background:var(--accent); color:var(--accent-ink);}
+  .navbtn.sub{padding-left:26px; font-size:12.5px;}
+  .side-foot{margin-top:24px; padding-top:14px; border-top:1px solid var(--border); font-size:11px; color:var(--text-muted); line-height:1.5;}
+
+  /* Main */
+  .main{flex:1; min-width:0; padding:28px 34px 60px; max-width:1180px;}
+  .pagehead{margin-bottom:22px;}
+  .pagehead h1{font-size:22px; margin:0 0 4px; font-weight:700; letter-spacing:-.2px;}
+  .pagehead p{margin:0; color:var(--text-muted); font-size:13.5px; max-width:640px; line-height:1.5;}
+  .crumb{font-size:12px; color:var(--text-muted); margin-bottom:8px; display:flex; align-items:center; gap:6px;}
+  .crumb button{background:none;border:none;color:var(--text-muted);font-family:var(--sans);cursor:pointer;font-size:12px;padding:0;}
+  .crumb button:hover{color:var(--accent);}
+
+  .panel{background:var(--panel); border:1px solid var(--border); border-radius:var(--radius); padding:20px;}
+  .panel + .panel{margin-top:16px;}
+  .panel h2{font-size:14px; margin:0 0 14px; font-weight:600; display:flex; align-items:center; gap:8px;}
+  .panel h2 .n{font-family:var(--mono); font-size:11px; color:var(--text-muted); font-weight:500;}
+
+  .btn{
+    display:inline-flex; align-items:center; gap:7px; justify-content:center;
+    padding:9px 16px; border-radius:var(--radius); border:1px solid var(--border);
+    background:var(--panel-2); color:var(--text); font-family:var(--sans); font-size:13px;
+    font-weight:600; cursor:pointer; white-space:nowrap;
+  }
+  .btn:hover{border-color:var(--accent);}
+  .btn:disabled{opacity:.4; cursor:not-allowed;}
+  .btn:disabled:hover{border-color:var(--border);}
+  .btn-primary{background:var(--accent); color:var(--accent-ink); border-color:var(--accent);}
+  .btn-primary:hover{filter:brightness(1.06);}
+  .btn-danger{background:var(--danger); color:#fff; border-color:var(--danger);}
+  .btn-sm{padding:6px 11px; font-size:12px;}
+  .btn-row{display:flex; gap:10px; flex-wrap:wrap; align-items:center;}
+
+  table{width:100%; border-collapse:collapse; font-size:13px;}
+  th{text-align:left; font-size:11px; text-transform:none; color:var(--text-muted); font-weight:600; padding:0 10px 8px; border-bottom:1px solid var(--border);}
+  td{padding:10px 10px; border-bottom:1px solid var(--border); vertical-align:middle;}
+  tr:last-child td{border-bottom:none;}
+  .mono{font-family:var(--mono);}
+  .muted{color:var(--text-muted);}
+  .tag{display:inline-block; padding:2px 8px; border-radius:20px; font-size:11px; font-weight:600; font-family:var(--mono);}
+  .tag-open{background:var(--warn-bg); color:var(--warn);}
+  .tag-closed{background:var(--success-bg); color:var(--success);}
+  .tag-complete{background:var(--success-bg); color:var(--success);}
+  .tag-pending{background:var(--panel-2); color:var(--text-muted); border:1px solid var(--border);}
+
+  .progress{height:6px; background:var(--panel-2); border-radius:4px; overflow:hidden; border:1px solid var(--border);}
+  .progress > div{height:100%; background:var(--success);}
+  .progress.over > div{background:var(--danger);}
+
+  .empty{padding:40px 20px; text-align:center; color:var(--text-muted); font-size:13.5px;}
+  .empty .big{font-size:32px; margin-bottom:10px;}
+
+  .drop{
+    border:1.5px dashed var(--border); border-radius:var(--radius); padding:34px 20px;
+    text-align:center; cursor:pointer; background:var(--panel-2);
+  }
+  .drop:hover{border-color:var(--accent);}
+  .drop input{display:none;}
+  .drop .lbl{font-weight:600; font-size:14px; margin-bottom:4px;}
+  .drop .sub{color:var(--text-muted); font-size:12.5px;}
+
+  .kv{display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-bottom:2px;}
+  .kv .item{background:var(--panel-2); border:1px solid var(--border); border-radius:var(--radius); padding:12px 14px;}
+  .kv .item .l{font-size:10.5px; color:var(--text-muted); font-weight:600; margin-bottom:4px;}
+  .kv .item .v{font-family:var(--mono); font-size:14px; font-weight:600;}
+  @media (max-width: 760px){ .kv{grid-template-columns:repeat(2,1fr);} .app{flex-direction:column;} .side{width:100%; height:auto; position:relative; flex:none;} .main{padding:20px;} }
+
+  .banner{border-radius:var(--radius); padding:12px 14px; font-size:13.5px; font-weight:600; margin-bottom:14px; display:flex; align-items:center; gap:10px;}
+  .banner.err{background:var(--danger-bg); color:var(--danger); border:1px solid var(--danger);}
+  .banner.ok{background:var(--success-bg); color:var(--success); border:1px solid var(--success);}
+  .banner .code{font-family:var(--mono); font-weight:700;}
+
+  .scanwrap{display:flex; gap:18px; align-items:flex-start;}
+  @media (max-width:900px){.scanwrap{flex-direction:column;}}
+  .scanmain{flex:1.4; min-width:0;}
+  .scanside{flex:1; min-width:0;}
+
+  .modeToggle{display:inline-flex; border:1px solid var(--border); border-radius:var(--radius); overflow:hidden;}
+  .modeToggle button{padding:6px 12px; font-size:12px; font-weight:600; font-family:var(--sans); border:none; background:var(--panel); color:var(--text-muted); cursor:pointer;}
+  .modeToggle button.on{background:var(--accent); color:var(--accent-ink);}
+
+  .scanbox{
+    width:100%; font-family:var(--mono); font-size:20px; padding:14px 16px; border-radius:var(--radius);
+    border:1.5px solid var(--border); background:var(--panel-2); color:var(--text); font-weight:600;
+  }
+  .scanbox:focus{outline:none; border-color:var(--accent);}
+  .field-row{display:flex; gap:10px; align-items:flex-end; flex-wrap:wrap;}
+  label.fl{font-size:11px; font-weight:600; color:var(--text-muted); display:block; margin-bottom:5px;}
+  select, input[type=text], input[type=number]{
+    font-family:var(--sans); font-size:13.5px; padding:8px 10px; border-radius:var(--radius);
+    border:1px solid var(--border); background:var(--panel); color:var(--text);
+  }
+  input[type=number]{width:90px;}
+
+  .scanlog{max-height:230px; overflow-y:auto; margin-top:10px; border-top:1px solid var(--border);}
+  .scanlog .row{display:flex; justify-content:space-between; font-family:var(--mono); font-size:12px; padding:6px 2px; border-bottom:1px solid var(--border);}
+
+  footer.hint{margin-top:26px; font-size:11.5px; color:var(--text-muted); line-height:1.6; border-top:1px solid var(--border); padding-top:14px;}
+
+  /* Printable label */
+  #labelPrint{display:none;}
+  @media print{
+    body *{visibility:hidden;}
+    #labelPrint, #labelPrint *{visibility:visible;}
+    #labelPrint{display:block; position:fixed; top:0; left:0;}
+    @page{ size: 4in 6in; margin:0; }
+  }
+  .label4x6{
+    width:4in; height:6in; padding:0.2in; font-family:var(--mono); color:#111; background:#fff;
+    display:flex; flex-direction:column;
+  }
+  .label4x6 h3{font-size:15px; margin:0 0 2px; letter-spacing:.5px;}
+  .label4x6 .sub{font-size:9.5px; color:#555; margin-bottom:8px;}
+  .label4x6 .grid2{display:grid; grid-template-columns:1fr 1fr; gap:4px 10px; font-size:9.5px; border-top:1.5px solid #111; border-bottom:1.5px solid #111; padding:6px 0; margin-bottom:8px;}
+  .label4x6 .grid2 b{display:block; font-size:8px; color:#555; font-weight:600; text-transform:uppercase; letter-spacing:.4px;}
+  .label4x6 table{width:100%; border-collapse:collapse; font-size:10px;}
+  .label4x6 th{border-bottom:1.5px solid #111; text-align:left; padding:3px 2px; font-size:8.5px; text-transform:uppercase;}
+  .label4x6 td{border-bottom:0.5px dashed #999; padding:3px 2px;}
+  .label4x6 .tot{margin-top:auto; border-top:1.5px solid #111; padding-top:6px; display:flex; justify-content:space-between; font-size:12px; font-weight:700;}
+  .previewOuter{display:flex; justify-content:center; padding:14px; background:var(--panel-2); border:1px solid var(--border); border-radius:var(--radius);}
+  .previewOuter .label4x6{box-shadow:0 1px 6px rgba(0,0,0,.15); border:1px solid #ccc;}
+
+.topbar{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:18px;flex-wrap:wrap}
+.userpill{font-family:var(--mono);font-size:12px;padding:7px 10px;border:1px solid var(--border);border-radius:6px;background:var(--panel-2)}
+.statgrid{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:16px}
+@media(max-width:900px){.statgrid{grid-template-columns:repeat(2,1fr)}}
+.card{background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);padding:16px}
+.search{width:100%;max-width:420px}
+.notice{padding:10px 12px;border-radius:6px;background:var(--warn-bg);color:var(--warn);font-size:12.5px;margin:10px 0}
+
+  /* Compact warehouse/HHT visual refresh */
+  :root{--radius:8px;--shadow:0 4px 18px rgba(20,26,33,.07);--shadow2:0 8px 28px rgba(20,26,33,.10);}
+  body{font-size:12.5px;}
+  .side{width:200px;flex-basis:200px;padding:16px 12px;background:linear-gradient(180deg,var(--panel),var(--panel-2));}
+  .brand{margin-bottom:20px;gap:7px;}
+  .brand .mark{width:24px;height:24px;border-radius:6px;background:linear-gradient(135deg,var(--accent),#ff8a55);box-shadow:0 3px 10px rgba(224,91,36,.22);}
+  .brand .mark::after{inset:4px;border-width:1.5px;border-radius:3px;}
+  .brand .name{font-size:13.5px;}
+  .brand .name small{font-size:9px;}
+  .navbtn{padding:7px 9px 7px 11px;font-size:12px;border-radius:7px;}
+  .navbtn.sub{padding-left:22px;font-size:11.5px;}
+  .navbtn .badge{font-size:9.5px;padding:1px 5px;}
+  .side-foot{font-size:10px;line-height:1.4;}
+  .main{padding:22px 26px 44px;max-width:1240px;}
+  .pagehead{margin-bottom:16px;}
+  .pagehead h1{font-size:19px;}
+  .pagehead p{font-size:11.5px;line-height:1.4;}
+  .crumb{font-size:10.5px;margin-bottom:6px;}
+  .crumb button{font-size:10.5px;}
+  .panel{padding:15px;border-radius:8px;box-shadow:var(--shadow);}
+  .panel + .panel{margin-top:12px;}
+  .panel h2{font-size:12.5px;margin-bottom:10px;}
+  .panel h2 .n{font-size:10px;}
+  .btn{padding:7px 12px;font-size:11.5px;border-radius:7px;transition:.15s ease;box-shadow:0 1px 2px rgba(0,0,0,.03);}
+  .btn:hover{transform:translateY(-1px);box-shadow:0 4px 10px rgba(0,0,0,.08);}
+  .btn-sm{padding:5px 9px;font-size:10.5px;}
+  table{font-size:11.5px;}
+  th{font-size:9.5px;padding:0 8px 6px;}
+  td{padding:7px 8px;}
+  .tag{font-size:9.5px;padding:2px 7px;}
+  .kv{gap:10px;}
+  .kv .item{padding:9px 11px;border-radius:8px;box-shadow:var(--shadow);}
+  .kv .item .l{font-size:9px;}
+  .kv .item .v{font-size:12.5px;}
+  .scanwrap{gap:12px;}
+  .scanbox{font-size:17px;padding:11px 13px;border-radius:8px;box-shadow:inset 0 1px 3px rgba(0,0,0,.03);}
+  label.fl{font-size:9.5px;}
+  select,input[type=text],input[type=number]{font-size:11.5px;padding:7px 8px;border-radius:7px;}
+  .scanlog{max-height:190px;}
+  .scanlog .row{font-size:10.5px;padding:5px 2px;}
+  .drop{padding:25px 16px;border-radius:8px;}
+  .drop .lbl{font-size:12.5px;}
+  .drop .sub{font-size:10.5px;}
+  .banner{padding:9px 11px;font-size:11.5px;border-radius:7px;}
+  .progress{height:5px;}
+  .empty{padding:28px 16px;font-size:11.5px;}
+  .empty .big{font-size:26px;}
+  @media (max-width:760px){.main{padding:16px;}.side{width:100%;}.pagehead h1{font-size:18px;}}
+
+</style></head><body>
+<div class="app"><aside class="side"><div class="brand"><div class="mark"></div><div class="name">OrderPack WMS<small>Multi-User · Scan · Pack</small></div></div><nav class="sidenav" id="nav"></nav><div class="side-foot">Central data is stored in Google Sheets. Multiple users can work on the same order.</div></aside><main class="main" id="main"></main></div><div id="labelPrint"></div><script>
+const API_URL="https://script.google.com/macros/s/AKfycbwdfKge_7XNDj9DNd5qQBBaCECJVspw7s5dxQUcxNgnDqRjjomN0WfPzV6n3Ae2SqSYXw/exec", POLL_MS=4000, LS_USER="orderpack_user_v2";
+let me=JSON.parse(localStorage.getItem(LS_USER)||"null"), data={orders:[],boxes:[],users:[]}, view={name:"dashboard",orderId:null,boxId:null}, timer;
+const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const num=x=>Number(x)||0, fmt=x=>x?new Date(x).toLocaleString("en-IN",{day:"2-digit",month:"short",year:"numeric",hour:"2-digit",minute:"2-digit"}):"—";
+const ready=()=>API_URL&&!API_URL.includes("PASTE_YOUR");
+async function api(action,payload={}){if(!ready())throw Error("Backend URL not configured. Deploy Code.gs and paste its /exec URL in API_URL.");const r=await fetch(API_URL,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify({action,...payload})});const j=await r.json();if(!j.ok)throw Error(j.error||"Server error");return j}
+function toast(s){let e=document.getElementById("toast");if(!e){e=document.createElement("div");e.id="toast";e.style.cssText="position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#111;color:#fff;padding:10px 16px;border-radius:6px;z-index:2000;font-size:13px";document.body.appendChild(e)}e.textContent=s;e.style.display="block";setTimeout(()=>e.style.display="none",2800)}
+function login(){let name=document.getElementById("uname").value.trim(),code=document.getElementById("ucode").value.trim().toUpperCase();if(!name||!code)return toast("Enter name and packer code.");me={name,code};localStorage.setItem(LS_USER,JSON.stringify(me));render();sync()}
+function logout(){localStorage.removeItem(LS_USER);me=null;render()}
+function order(id){return data.orders.find(o=>o.orderId===id)}
+function boxes(id){return data.boxes.filter(b=>b.orderId===id)}
+function totals(o){let req=0,sc=0;o.items.forEach(i=>{req+=num(i.requiredQty);sc+=Math.min(num(i.scannedQty),num(i.requiredQty))});return{req,sc,remaining:req-sc,complete:req>0&&req===sc}}
+function go(name,orderId=null,boxId=null){view={name,orderId,boxId};render();scrollTo(0,0)}
+async function sync(){if(!me||!ready())return;try{let r=await api("snapshot",{user:me});data=r.data;render()}catch(e){toast(e.message)}}
+function render(){if(!me){document.getElementById("nav").innerHTML="";document.getElementById("main").innerHTML=`<div class="pagehead"><h1>Order Processing WMS</h1><p>Enter your operator details.</p></div><div class="card" style="max-width:460px"><h2>Operator Login</h2><label class="fl">Packer Name</label><input id="uname" type="text" placeholder="e.g. Arvind"><label class="fl" style="margin-top:10px">Packer Code</label><input id="ucode" type="text" placeholder="e.g. ARV01"><br><button class="btn btn-primary" style="margin-top:14px" onclick="login()">Start Packing</button></div>`;return}nav();let m=document.getElementById("main");if(view.name==="dashboard")m.innerHTML=dashboard();else if(view.name==="upload")m.innerHTML=upload();else if(view.name==="orders")m.innerHTML=orders();else if(view.name==="order")m.innerHTML=orderView(view.orderId);else if(view.name==="box")m.innerHTML=boxView(view.boxId);else if(view.name==="slip")m.innerHTML=slipView(view.boxId);else m.innerHTML=reports();hooks()}
+function nav(){document.getElementById("nav").innerHTML=`<div class="navsec"><button class="navbtn ${view.name==="dashboard"?"active":""}" onclick="go('dashboard')">▦ Dashboard</button><button class="navbtn ${view.name==="upload"?"active":""}" onclick="go('upload')">↑ Upload Orders</button><button class="navbtn ${view.name==="orders"?"active":""}" onclick="go('orders')">☷ Orders <span class="badge">${data.orders.length}</span></button><button class="navbtn ${view.name==="reports"?"active":""}" onclick="go('reports')">▤ Reports</button></div><div class="navsec"><div class="seclabel">OPERATOR</div><button class="navbtn" onclick="logout()">⇥ ${esc(me.name)} · ${esc(me.code)}</button></div>`}
+function dashboard(){let req=0,sc=0;data.orders.forEach(o=>{let t=totals(o);req+=t.req;sc+=t.sc});return `<div class="topbar"><div class="pagehead"><h1>Order Processing Dashboard</h1><p>Shared order balance updates across all packing users.</p></div><div class="userpill">👤 ${esc(me.name)} · ${esc(me.code)}</div></div><div class="statgrid"><div class="card"><div class="muted">Orders</div><b>${data.orders.length}</b></div><div class="card"><div class="muted">Required</div><b>${req}</b></div><div class="card"><div class="muted">Scanned</div><b>${sc}</b></div><div class="card"><div class="muted">Remaining</div><b>${req-sc}</b></div><div class="card"><div class="muted">Open Tables</div><b>${data.boxes.filter(b=>b.status==="open").length}</b></div></div><div class="card"><h2>Orders</h2><table><thead><tr><th>Order</th><th>Required</th><th>Scanned</th><th>Remaining</th><th></th></tr></thead><tbody>${data.orders.slice(0,15).map(o=>{let t=totals(o);return `<tr><td class="mono">${esc(o.orderId)}</td><td>${t.req}</td><td>${t.sc}</td><td><b>${t.remaining}</b></td><td><button class="btn btn-sm" onclick="go('order','${esc(o.orderId)}')">Open</button></td></tr>`}).join("")||"<tr><td colspan=5 class=empty>No orders.</td></tr>"}</tbody></table></div>`}
+function upload(){return `<div class="pagehead"><h1>Upload Orders</h1><p>Columns: Order ID, Order Type, SKU, Required Qty.</p></div><div class="card"><input id="file" type="file" accept=".xlsx,.xls,.csv" onchange="fileSelected()"><div id="fileInfo" class="notice" style="display:none"></div><div id="uploadStatus" class="muted" style="margin:8px 0;font-size:11.5px"></div><button id="uploadBtn" class="btn btn-primary" onclick="uploadFile()">Upload to Central WMS</button><div class="notice">Existing Order IDs are merged. Existing scanned quantity is retained.</div></div>`}
+function fileSelected(){const f=document.getElementById("file")?.files?.[0],info=document.getElementById("fileInfo"),st=document.getElementById("uploadStatus");if(!f)return;if(!window.XLSX){st.textContent="Excel reader is still loading. Please wait a moment.";return}info.style.display="block";info.textContent=`Selected: ${f.name} · ${(f.size/1024).toFixed(1)} KB`;st.textContent="File selected. Click Upload to Central WMS."}
+async function uploadFile(){const f=document.getElementById("file")?.files?.[0],st=document.getElementById("uploadStatus"),btn=document.getElementById("uploadBtn");if(!f)return toast("Please select the Excel/CSV template first.");if(!window.XLSX)return toast("Excel reader could not load. Refresh the WMS and try again.");try{btn.disabled=true;st.textContent="Reading template…";const buf=await f.arrayBuffer();const wb=XLSX.read(buf,{type:"array",cellDates:false});if(!wb.SheetNames.length)throw Error("No sheet found in the selected file.");const ws=wb.Sheets[wb.SheetNames[0]];const rows=XLSX.utils.sheet_to_json(ws,{defval:"",raw:false});if(!rows.length)throw Error("The selected template is empty.");const keys=Object.keys(rows[0]).map(x=>String(x).trim().toLowerCase());const required=["order id","order type","sku","required qty"];const missing=required.filter(x=>!keys.includes(x));if(missing.length)throw Error("Missing column(s): "+missing.join(", ")+". Please use the WMS template.");st.textContent=`Read ${rows.length} row(s). Uploading to Central WMS…`;const r=await api("upload",{user:me,rows});toast("Uploaded "+r.count+" rows successfully");st.textContent=`Uploaded ${r.count} row(s) successfully.`;await sync();go("orders")}catch(e){st.textContent="Upload failed: "+(e.message||e);toast("Upload failed: "+(e.message||e))}finally{btn.disabled=false}}
+function orders(){return `<div class="topbar"><div class="pagehead"><h1>Orders</h1><p>Multiple users can open and pack the same order.</p></div><input id="q" class="search" type="text" placeholder="Search Order ID / SKU"></div><div class="card"><table><thead><tr><th>Order</th><th>Type</th><th>Required</th><th>Scanned</th><th>Remaining</th><th>Status</th><th></th></tr></thead><tbody id="rows"></tbody></table></div>`}
+function fill(){let q=(document.getElementById("q")?.value||"").toLowerCase(),r=data.orders.filter(o=>(o.orderId+" "+o.items.map(i=>i.sku).join(" ")).toLowerCase().includes(q)).map(o=>{let t=totals(o);return `<tr><td class="mono"><b>${esc(o.orderId)}</b></td><td>${esc(o.orderType||"")}</td><td>${t.req}</td><td>${t.sc}</td><td><b>${t.remaining}</b></td><td>${t.complete?"Complete":"Pending"}</td><td><button class="btn btn-sm btn-primary" onclick="go('order','${esc(o.orderId)}')">Pack</button></td></tr>`}).join("");document.getElementById("rows").innerHTML=r||"<tr><td colspan=7 class=empty>No orders found.</td></tr>"}
+function orderView(id){let o=order(id);if(!o)return `<div class=empty>Order not found</div>`;let t=totals(o),bs=boxes(id);return `<div class="crumb"><button onclick="go('orders')">Orders</button> / ${esc(id)}</div><div class="pagehead"><h1>${esc(id)}</h1><p>One order can be packed by multiple users at different tables.</p></div><div class="statgrid"><div class=card><div class=muted>Required</div><b>${t.req}</b></div><div class=card><div class=muted>Scanned</div><b>${t.sc}</b></div><div class=card><div class=muted>Remaining</div><b>${t.remaining}</b></div><div class=card><div class=muted>Tables</div><b>${bs.length}</b></div><div class=card><div class=muted>Packers</div><b>${new Set(bs.map(b=>b.packerCode)).size}</b></div></div><div class=card><h2>SKU Balance</h2><table><thead><tr><th>SKU</th><th>Required</th><th>Scanned</th><th>Remaining</th></tr></thead><tbody>${o.items.map(i=>`<tr><td class=mono>${esc(i.sku)}</td><td>${i.requiredQty}</td><td>${i.scannedQty}</td><td><b>${Math.max(0,i.requiredQty-i.scannedQty)}</b></td></tr>`).join("")}</tbody></table></div><div class=card><h2>Packing Tables</h2><button class="btn btn-primary" onclick="newBox('${esc(id)}')">+ Open Packing Table</button><table style="margin-top:14px"><thead><tr><th>Table No</th><th>Packer</th><th>Qty</th><th>Status</th><th></th></tr></thead><tbody>${bs.map(b=>`<tr><td class=mono><b>${esc(b.tableNo)}</b></td><td>${esc(b.packerName)} (${esc(b.packerCode)})</td><td>${Object.values(b.items).reduce((a,c)=>a+num(c),0)}</td><td>${b.status}</td><td><button class="btn btn-sm" onclick="go('${b.status==="closed"?"slip":"box"}','${esc(id)}','${esc(b.boxId)}')">${b.status==="closed"?"Slip":"Open"}</button></td></tr>`).join("")||"<tr><td colspan=5 class=empty>No table opened.</td></tr>"}</tbody></table></div>`}
+async function newBox(id){try{let r=await api("createBox",{user:me,orderId:id});await sync();go("box",id,r.boxId)}catch(e){toast(e.message)}}
+function boxView(id){let b=data.boxes.find(x=>x.boxId===id),o=b&&order(b.orderId);if(!b)return `<div class=empty>Box not found</div>`;let q=Object.values(b.items).reduce((a,c)=>a+num(c),0);return `<div class=pagehead><h1>Table ${esc(b.tableNo)}</h1><p>Order ${esc(b.orderId)} · Packer ${esc(b.packerName)} (${esc(b.packerCode)})</p></div><div class="statgrid"><div class=card><div class=muted>Order Remaining</div><b>${totals(o).remaining}</b></div><div class=card><div class=muted>This Table</div><b>${q}</b></div><div class=card><div class=muted>Status</div><b>${b.status}</b></div></div>${b.status==="open"?`<div class=card><h2>Scan SKU</h2><div class=notice>Every scan is checked centrally and atomically. If another user scans the same SKU, your remaining quantity is refreshed automatically.</div><input id=scan class=scanbox autofocus placeholder="Scan SKU or SKU*QTY"><div class=btn-row style="margin-top:10px"><button class="btn btn-primary" onclick="scanNow()">Scan / Add</button><button class=btn onclick="closeBox('${esc(id)}')">Complete Table</button></div></div>`:`<div class=success>Packing table closed. Table No and Packer are permanently shown on the packing slip.</div><button class="btn btn-primary" onclick="go('slip','${esc(b.orderId)}','${esc(id)}')">View Packing Slip</button>`}<div class=card><h2>Scanned in this table</h2><table><thead><tr><th>SKU</th><th>Qty</th></tr></thead><tbody>${Object.entries(b.items).map(([s,q])=>`<tr><td class=mono>${esc(s)}</td><td>${q}</td></tr>`).join("")||"<tr><td colspan=2 class=empty>No scan yet.</td></tr>"}</tbody></table></div>`}
+async function scanNow(){let raw=document.getElementById("scan").value.trim(),sku=raw,qty=1,m=raw.match(/^(.*)\*(\d+)$/);if(m){sku=m[1].trim();qty=+m[2]}if(!sku)return;try{let r=await api("scan",{user:me,boxId:view.boxId,sku,qty});toast("Added "+r.qty+" × "+r.sku+" | Remaining "+r.remaining);await sync();go("box",view.orderId,view.boxId)}catch(e){toast(e.message)}}
+async function closeBox(id){try{await api("closeBox",{user:me,boxId:id});await sync();go("slip",view.orderId,id)}catch(e){toast(e.message)}}
+function slipView(id){let b=data.boxes.find(x=>x.boxId===id),o=b&&order(b.orderId);return `<div class=pagehead><h1>Packing Slip — Table ${esc(b.tableNo)}</h1><p>The Table No + Packer Code combination uniquely identifies who packed the table.</p></div><div class=btn-row><button class="btn btn-primary" onclick="pdf('${esc(id)}')">Download PDF</button><button class=btn onclick="prt('${esc(id)}')">Print</button></div><div class=previewOuter>${slipHTML(b,o)}</div>`}
+function slipHTML(b,o){let rows=Object.entries(b.items).map(([s,q])=>`<tr><td>${esc(s)}</td><td style="text-align:right">${q}</td></tr>`).join("");return `<div class=label4x6><h3>PACKING SLIP</h3><div class=sub>${esc(o.orderId)} · ${esc(o.orderType||"")}</div><div class=grid2><div><b>TABLE NO</b>${esc(b.tableNo)}</div><div><b>BOX NO</b>${esc(b.boxId)}</div><div><b>PACKED BY</b>${esc(b.packerName)}</div><div><b>PACKER CODE</b>${esc(b.packerCode)}</div><div><b>PACKED AT</b>${fmt(b.closedAt)}</div><div><b>ORDER ID</b>${esc(o.orderId)}</div></div><table><thead><tr><th>SKU</th><th style="text-align:right">QTY</th></tr></thead><tbody>${rows}</tbody></table><div class=tot><span>TOTAL</span><span>${Object.values(b.items).reduce((a,c)=>a+num(c),0)}</span></div></div>`}
+function prt(id){let b=data.boxes.find(x=>x.boxId===id),o=order(b.orderId);document.getElementById("labelPrint").innerHTML=slipHTML(b,o);print()}
+function pdf(id){let b=data.boxes.find(x=>x.boxId===id),o=order(b.orderId),J=window.jspdf.jsPDF,d=new J({unit:"in",format:[4,6]}),y0=.3;d.setFont("courier","bold");d.setFontSize(15);d.text("PACKING SLIP",.22,y0);d.setFontSize(9);d.text("TABLE: "+b.tableNo,.22,.58);d.text("PACKER: "+b.packerCode,2.2,.58);d.text("ORDER: "+o.orderId,.22,.76);let y=.98;Object.entries(b.items).forEach(([s,q])=>{d.text(s,.22,y);d.text(String(q),3.3,y);y+=.18});d.setFont("courier","bold");d.text("PACKED BY: "+b.packerName,.22,5.55);d.text(b.tableNo+" / "+b.packerCode,2.0,5.8);d.save(b.tableNo+"_packing_slip.pdf")}
+function reports(){return `<div class=pagehead><h1>Central Reports</h1><p>All packing activity is available centrally.</p></div><div class=card><button class="btn btn-primary" onclick="report('scan')">Download Scan Data</button> <button class=btn onclick="report('boxes')">Download Packing Table Data</button> <button class=btn onclick="report('orders')">Download Order Balance</button></div>`}
+async function report(type){try{let r=await api("report",{user:me,type}),ws=XLSX.utils.json_to_sheet(r.rows),wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,"Report");XLSX.writeFile(wb,"OrderPack_"+type+"_report.xlsx")}catch(e){toast(e.message)}}
+function hooks(){let q=document.getElementById("q");if(q){q.oninput=fill;fill()}let s=document.getElementById("scan");if(s)s.onkeydown=e=>{if(e.key==="Enter")scanNow()}}
+render();timer=setInterval(()=>{if(me)sync()},POLL_MS);if(me)sync();
+</script></body></html>
